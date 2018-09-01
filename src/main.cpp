@@ -91,7 +91,8 @@ int main() {
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
-
+          double delta= j[1]["steering_angle"];
+          double a = j[1]["throttle"];
           /*
           * TODO: Calculate steering angle and throttle using MPC.
           *
@@ -101,10 +102,6 @@ int main() {
           // Transforming from the Map to Vehicle coordinates.
           vector<double> ptsx_veh(ptsx.size());
           vector<double> ptsy_veh(ptsx.size());
-
-          Eigen::VectorXd veh_coor = Eigen::VectorXd::Zero(3);
-          Eigen::MatrixXd transf_matrix = Eigen::MatrixXd::Zero(3,3);
-          Eigen::VectorXd map_coor = Eigen::VectorXd::Zero(3);
 
           for(size_t i =0; i< ptsx.size(); i++)
           {
@@ -120,17 +117,35 @@ int main() {
 
           size_t poly_order = 3;
           Eigen::VectorXd coeffs = polyfit(ptsx_e, ptsy_e, poly_order);
+
+          // New state params values after coordinate transformation
+          px = 0;
+          py = 0;
+          psi = 0;
           double fx = polyeval(coeffs, 0); // px = py = 0
           double cte = fx;
+          double des_psi = atan(coeffs[1]);
+          double epsi = -des_psi; //psi = 0
 
+          // predict the states for after 100ms before sending them to MPC to account
+          //for the actuations 100 mS latency
+          size_t latency = 0.1;
+          // This is the length from front to CoG that has a similar radius.
+          const double Lf = 2.67;
+          //to convert miles per hour to meter per second, and you should convert ref_v too
+          //v*=0.44704;
+          // change of sign because turning left is negative sign in simulator but positive yaw for MPC
+          delta = -delta;
+          //psi = delta; // in coordinate now, so use steering angle to predict x and y
+          px = px + v*cos(psi)*latency;
+          py = py + v*sin(psi)*latency;
+          psi = psi + v*delta*latency/Lf;
+          v = v + a*latency;
+          cte= cte + v*sin(epsi)*latency;
+          epsi = epsi + v*epsi*latency/Lf;
 
-          Eigen::VectorXd drv_coeffs;
-          double des_psi = -atan(coeffs[1]);
-
-
-          double epsi = des_psi; //psi = 0
           Eigen::VectorXd state = Eigen::VectorXd::Zero(6);
-          state << 0, 0, 0, v, cte, epsi;
+          state << px, py, psi, v, cte, epsi;
 
 
           vector<double> solution;
@@ -148,7 +163,7 @@ int main() {
           //Display the MPC predicted trajectory
           vector<double> mpc_x_vals;
           vector<double> mpc_y_vals;
-          
+
           for (size_t i = 2; i < solution.size(); i++) {
             if(i%2 == 0){
               mpc_x_vals.push_back(solution[i]);

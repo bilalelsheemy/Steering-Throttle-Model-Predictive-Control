@@ -79,14 +79,26 @@ We then calculate the CTE and the psi error using the fitted polynomial and its 
 Now the state vector and the polynomial coeffs are ready to be passed to the optimizer to calculate new set actuations with minimal cost.
 
 ### Model Predictive Control with Latency
-The following segment of code forces the model to jump back two time steps and pick old activations. 
+The following segment of code uses the kinematic equations to predict the states for after 100ms before sending them to MPC. 
+We've placed this update just after the polynomial fitting so the state params were firstly updated according to the vehicle coordinate system.
 
-Latency = 0.1 sec = 2 * (dt=0.05), hence the actuations shall lag the current time step by two steps and this is handled as follows:
+		px = 0;
+          py = 0;
+          psi = 0;
+          double fx = polyeval(coeffs, 0); // px = py = 0
+          double cte = fx;
+          double des_psi = atan(coeffs[1]);
+          double epsi = -des_psi; //psi = 0
 
-    if (t > 2) {   // use previous actuations (to account for latency)
-        a0 = vars[a_start + t - 3];
-        delta0 = vars[delta_start + t - 3];
-      }
+- Latency = 0.1 sec:
+
+	  
+		px = px + v*cos(psi)*latency;
+          py = py + v*sin(psi)*latency;
+          psi = psi + v*delta*latency/Lf;
+          v = v + a*latency;
+          cte= cte + v*sin(epsi)*latency;
+          epsi = epsi + v*epsi*latency/Lf;
 
 ### Speed and Track Completion Tuning
 In order to complete one lap over the driveable portion of the track, I had to do the following tunings: 
@@ -98,9 +110,10 @@ The major issue observed after completing the model implementation was the errat
 - Increased the weight of actuation delta components equally to eliminate the erratic actuation over time and actually this enhanced the actuations stability (Accepted tuning).
 
 #### 2- Speed Tuning
-Started with a speed of 25 mph, then increased it to 40 mph and still the car do the job autonomously.
-Then increased it to 60 mph and unfortunately the vehicle left the drivable lane in one of the sharp turns.
-Then decreased it to 50 mph and the vehicle completed the lap but wasn't stable as it was on 40 mph.
-Finally I've set the reference velocity to 40 mph.
+- Started with a speed of 25 mph, then increased it to 40 mph and still the car do the job autonomously but the speed in the simulator doesn't exceed 20 mph.
+- Then increased it to 60 mph while the weights of the actuation components and the actuation deltas in the cost were ~50, the vehicle actuations were erratic enough to get it out of the drivable lane in one of the sharp turns.
+- Then set it to 60 mph and increased the weights of the actuation components and the actuation deltas in the cost to ~100 & ~75 respectively, the vehicle could steer smoothly and the speed in the simulator increased to 30 mph.
+
+Finally I've set the reference velocity to 60 mph.
 
 

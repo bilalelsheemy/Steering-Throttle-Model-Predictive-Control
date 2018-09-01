@@ -46,7 +46,9 @@ class FG_eval {
     // Cost function
     // TODO: Define the cost related the reference state and
     // any anything you think may be beneficial.
-    size_t ref_v = 40;
+    size_t ref_v = 60;
+    // Converting from mph to m/s
+    //ref_v *= 0.44704;
     fg[0] = 0;
     // The part of the cost based on the reference state.
     for (int t = 0; t < N; t++) {
@@ -56,14 +58,14 @@ class FG_eval {
     }
     // Minimize the use of actuators.
     for (int t = 0; t < N - 1; t++) {
-      fg[0] += 50*CppAD::pow(vars[delta_start + t], 2);
-      fg[0] += 50*CppAD::pow(vars[a_start + t], 2);
+      fg[0] += 100*CppAD::pow(vars[delta_start + t], 2);
+      fg[0] += 100*CppAD::pow(vars[a_start + t], 2);
     }
 
     // Minimize the value gap between sequential actuations.
     for (int t = 0; t < N - 2; t++) {
-      fg[0] += 50*CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
-      fg[0] += 50*CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
+      fg[0] += 75*CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
+      fg[0] += 75*CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
     }
 
     // Initial State
@@ -95,10 +97,10 @@ class FG_eval {
     AD<double> a0 = vars[a_start + t - 1];
 
     // use previous actuations (to account for latency)
-    if (t > 1) {
-        a0 = vars[a_start + t - 2];
-        delta0 = vars[delta_start + t - 2];
-      }
+    //if (t > 1) {
+    //    a0 = vars[a_start + t - 2];
+    //    delta0 = vars[delta_start + t - 2];
+    //  }
 
     // Preparing for calculating the new CTE & EPSI according to the updated state params
     AD<double> f0 = coeffs[0] + coeffs[1] * x0 + coeffs[2] * CppAD::pow(x0, 2) + coeffs[3] * CppAD::pow(x0, 3);
